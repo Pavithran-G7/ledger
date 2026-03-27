@@ -872,8 +872,15 @@ function TransactionTable({ state, dispatch, runningBalances, isMobileView }) {
       await transactionAPI.delete(state.pendingDelete);
       dispatch({ type: 'DELETE_TRANSACTION', payload: state.pendingDelete });
     } catch (error) {
+      if (error.status === 404) {
+        // In serverless deployments, an already-deleted record can return 404 on retry.
+        dispatch({ type: 'DELETE_TRANSACTION', payload: state.pendingDelete });
+        return;
+      }
+
       console.error('Failed to delete transaction:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to delete transaction' });
+      dispatch({ type: 'SET_PENDING_DELETE', payload: null });
     }
   };
 

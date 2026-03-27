@@ -24,7 +24,9 @@ const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
+      const requestError = new Error(error.error || `HTTP ${response.status}`);
+      requestError.status = response.status;
+      throw requestError;
     }
 
     return response;
