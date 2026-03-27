@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const DB_PATH = join(process.cwd(), 'db.json');
+const IS_VERCEL = Boolean(process.env.VERCEL);
 
 // In-memory cache for serverless environment
 let dbCache = null;
@@ -32,6 +33,13 @@ const readDB = () => {
 
 const writeDB = (data) => {
   try {
+    // Vercel serverless filesystem is read-only; keep data in warm memory cache.
+    if (IS_VERCEL) {
+      dbCache = data;
+      lastReadTime = Date.now();
+      return;
+    }
+
     writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
     dbCache = data;
     lastReadTime = Date.now();
@@ -67,6 +75,10 @@ export default function handler(request, response) {
   if (request.method === 'POST') {
     try {
       const db = readDB();
+      if (!Array.isArray(db.transactions)) {
+        db.transactions = [];
+      }
+
       const { date, type, category, description, amount, month } = request.body;
       
       if (!date || !type || !category || !description || amount === undefined || !month) {
