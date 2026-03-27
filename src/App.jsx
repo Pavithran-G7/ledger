@@ -703,21 +703,45 @@ function Sidebar({ state, dispatch, categoryTotals }) {
   );
 }
 
-function SummaryBar({ income, expenses, balance }) {
+function SummaryBar({ income, expenses, balance, isMobileView }) {
   return (
-    <div style={styles.summaryBar}>
+    <div
+      style={{
+        ...styles.summaryBar,
+        gap: isMobileView ? '16px' : styles.summaryBar.gap,
+        padding: isMobileView ? '16px' : styles.summaryBar.padding,
+        justifyContent: isMobileView ? 'space-between' : styles.summaryBar.justifyContent,
+      }}
+    >
       <div style={styles.summaryItem}>
-        <div style={{ ...styles.summaryValue, color: COLORS.text }}>₹{formatCurrency(income)}</div>
+        <div
+          style={{
+            ...styles.summaryValue,
+            color: COLORS.text,
+            fontSize: isMobileView ? '28px' : styles.summaryValue.fontSize,
+          }}
+        >
+          ₹{formatCurrency(income)}
+        </div>
         <div style={styles.summaryLabel}>INCOME</div>
       </div>
       <div style={styles.summaryItem}>
-        <div style={{ ...styles.summaryValue, color: COLORS.accentRed }}>₹{formatCurrency(expenses)}</div>
+        <div
+          style={{
+            ...styles.summaryValue,
+            color: COLORS.accentRed,
+            fontSize: isMobileView ? '28px' : styles.summaryValue.fontSize,
+          }}
+        >
+          ₹{formatCurrency(expenses)}
+        </div>
         <div style={styles.summaryLabel}>EXPENSES</div>
       </div>
       <div style={styles.summaryItem}>
         <div
           style={{
             ...styles.summaryValue,
+            fontSize: isMobileView ? '28px' : styles.summaryValue.fontSize,
             color: balance >= 0 ? COLORS.accentYellow : COLORS.accentRed,
             textShadow: balance >= 0 ? '0 0 1px #0D0D0D' : 'none',
           }}
@@ -730,12 +754,20 @@ function SummaryBar({ income, expenses, balance }) {
   );
 }
 
-function FilterBar({ state, dispatch }) {
+function FilterBar({ state, dispatch, isMobileView }) {
   return (
-    <div style={styles.filterBar}>
+    <div
+      style={{
+        ...styles.filterBar,
+        padding: isMobileView ? '12px 10px' : styles.filterBar.padding,
+        gap: isMobileView ? '6px' : styles.filterBar.gap,
+      }}
+    >
       <button
         style={{
           ...styles.filterStamp,
+          padding: isMobileView ? '7px 10px' : styles.filterStamp.padding,
+          fontSize: isMobileView ? '12px' : styles.filterStamp.fontSize,
           ...(state.selectedCategory === null ? styles.filterStampActive : {}),
         }}
         onClick={() => dispatch({ type: 'SET_CATEGORY_FILTER', payload: null })}
@@ -747,6 +779,8 @@ function FilterBar({ state, dispatch }) {
           key={cat.name}
           style={{
             ...styles.filterStamp,
+            padding: isMobileView ? '7px 10px' : styles.filterStamp.padding,
+            fontSize: isMobileView ? '12px' : styles.filterStamp.fontSize,
             ...(state.selectedCategory === cat.name ? styles.filterStampActive : {}),
           }}
           onClick={() => dispatch({ type: 'SET_CATEGORY_FILTER', payload: cat.name })}
@@ -758,7 +792,7 @@ function FilterBar({ state, dispatch }) {
   );
 }
 
-function TransactionTable({ state, dispatch, runningBalances }) {
+function TransactionTable({ state, dispatch, runningBalances, isMobileView }) {
   const [hoveredRow, setHoveredRow] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -858,7 +892,7 @@ function TransactionTable({ state, dispatch, runningBalances }) {
 
   return (
     <div style={styles.tableContainer}>
-      <table style={styles.table}>
+      <table style={{ ...styles.table, minWidth: isMobileView ? '760px' : '100%' }}>
         <thead style={styles.tableHeader}>
           <tr>
             <th
@@ -1114,7 +1148,7 @@ function TransactionTable({ state, dispatch, runningBalances }) {
   );
 }
 
-function AddTransactionForm({ state, dispatch, onTransactionAdded }) {
+function AddTransactionForm({ state, dispatch, onTransactionAdded, isMobileView }) {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     type: 'expense',
@@ -1171,10 +1205,20 @@ function AddTransactionForm({ state, dispatch, onTransactionAdded }) {
       <div
         style={{
           ...styles.formPanel,
+          width: isMobileView ? '100%' : styles.formPanel.width,
+          padding: isMobileView ? '20px 16px 32px' : styles.formPanel.padding,
           ...(state.isFormOpen ? styles.formPanelOpen : {}),
         }}
       >
-        <h2 style={styles.formTitle}>NEW ENTRY</h2>
+        <h2
+          style={{
+            ...styles.formTitle,
+            fontSize: isMobileView ? '30px' : styles.formTitle.fontSize,
+            marginBottom: isMobileView ? '20px' : styles.formTitle.marginBottom,
+          }}
+        >
+          NEW ENTRY
+        </h2>
         <form onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
             <label style={styles.formLabel}>DATE</label>
@@ -1292,7 +1336,10 @@ function MobileSidebar({ state, dispatch, categoryTotals }) {
       borderTop: `3px solid ${COLORS.text}`,
       padding: '12px',
       display: 'flex',
-      justifyContent: 'space-around',
+      justifyContent: 'flex-start',
+      gap: '8px',
+      overflowX: 'auto',
+      whiteSpace: 'nowrap',
       zIndex: 100,
     }}>
       {CATEGORIES.map((cat) => {
@@ -1352,6 +1399,18 @@ function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [formHovered, setFormHovered] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const [isMobileView, setIsMobileView] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 768;
+  });
+
+  useEffect(() => {
+    const updateViewport = () => setIsMobileView(window.innerWidth <= 768);
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
 
   // Load transactions when month/year changes
   useEffect(() => {
@@ -1509,15 +1568,44 @@ function App() {
 
       <div style={styles.container}>
         {/* Desktop Sidebar */}
-        <Sidebar state={state} dispatch={dispatch} categoryTotals={categoryTotals} />
+        {!isMobileView && <Sidebar state={state} dispatch={dispatch} categoryTotals={categoryTotals} />}
 
         {/* Main Content */}
-        <main style={styles.mainContent}>
+        <main
+          style={{
+            ...styles.mainContent,
+            marginLeft: isMobileView ? 0 : styles.mainContent.marginLeft,
+            paddingBottom: isMobileView ? '92px' : 0,
+          }}
+        >
           {/* Header */}
-          <header style={styles.header}>
-            <h1 style={styles.headerTitle}>LEDGER</h1>
+          <header
+            style={{
+              ...styles.header,
+              padding: isMobileView ? '14px 16px' : styles.header.padding,
+              flexDirection: isMobileView ? 'column' : 'row',
+              alignItems: isMobileView ? 'flex-start' : styles.header.alignItems,
+              gap: isMobileView ? '12px' : 0,
+            }}
+          >
+            <h1
+              style={{
+                ...styles.headerTitle,
+                fontSize: isMobileView ? '48px' : styles.headerTitle.fontSize,
+                letterSpacing: isMobileView ? '2px' : styles.headerTitle.letterSpacing,
+              }}
+            >
+              LEDGER
+            </h1>
 
-            <div style={styles.headerMonth}>
+            <div
+              style={{
+                ...styles.headerMonth,
+                width: isMobileView ? '100%' : 'auto',
+                justifyContent: isMobileView ? 'space-between' : 'flex-start',
+                fontSize: isMobileView ? '18px' : styles.headerMonth.fontSize,
+              }}
+            >
               <div style={styles.monthNav}>
                 <button
                   style={styles.monthNavButton}
@@ -1556,16 +1644,18 @@ function App() {
             income={summary.income}
             expenses={summary.expenses}
             balance={summary.balance}
+            isMobileView={isMobileView}
           />
 
           {/* Filter Bar */}
-          <FilterBar state={state} dispatch={dispatch} />
+          <FilterBar state={state} dispatch={dispatch} isMobileView={isMobileView} />
 
           {/* Transaction Table */}
           <TransactionTable
             state={state}
             dispatch={dispatch}
             runningBalances={runningBalances}
+            isMobileView={isMobileView}
           />
         </main>
       </div>
@@ -1574,6 +1664,11 @@ function App() {
       <button
         style={{
           ...styles.addTransactionButton,
+          width: isMobileView ? '56px' : styles.addTransactionButton.width,
+          height: isMobileView ? '56px' : styles.addTransactionButton.height,
+          fontSize: isMobileView ? '28px' : styles.addTransactionButton.fontSize,
+          right: isMobileView ? '14px' : styles.addTransactionButton.right,
+          bottom: isMobileView ? '84px' : styles.addTransactionButton.bottom,
           ...(formHovered ? { backgroundColor: COLORS.text, color: COLORS.bg } : {}),
         }}
         onClick={() => dispatch({ type: 'OPEN_FORM' })}
@@ -1584,10 +1679,17 @@ function App() {
       </button>
 
       {/* Add Transaction Form Panel */}
-      <AddTransactionForm state={state} dispatch={dispatch} onTransactionAdded={handleTransactionAdded} />
+      <AddTransactionForm
+        state={state}
+        dispatch={dispatch}
+        onTransactionAdded={handleTransactionAdded}
+        isMobileView={isMobileView}
+      />
 
       {/* Mobile Sidebar (Bottom Tab Bar) */}
-      <MobileSidebar state={state} dispatch={dispatch} categoryTotals={categoryTotals} />
+      {isMobileView && (
+        <MobileSidebar state={state} dispatch={dispatch} categoryTotals={categoryTotals} />
+      )}
 
       {/* SVG Filters for noise */}
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
