@@ -1,15 +1,44 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const DB_PATH = join(process.cwd(), 'db.json');
 
+// In-memory cache for serverless environment
+let dbCache = null;
+let lastReadTime = 0;
+const CACHE_TTL = 60000; // 1 minute cache
+
 const readDB = () => {
-  const data = readFileSync(DB_PATH, 'utf-8');
-  return JSON.parse(data);
+  // Use cache if available and not expired
+  if (dbCache && Date.now() - lastReadTime < CACHE_TTL) {
+    return dbCache;
+  }
+  
+  try {
+    if (!existsSync(DB_PATH)) {
+      dbCache = { transactions: [] };
+      return dbCache;
+    }
+    const data = readFileSync(DB_PATH, 'utf-8');
+    dbCache = JSON.parse(data);
+    lastReadTime = Date.now();
+    return dbCache;
+  } catch (error) {
+    console.error('Error reading db:', error);
+    dbCache = { transactions: [] };
+    return dbCache;
+  }
 };
 
 const writeDB = (data) => {
-  writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    dbCache = data;
+    lastReadTime = Date.now();
+  } catch (error) {
+    console.error('Error writing db:', error);
+    throw error;
+  }
 };
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

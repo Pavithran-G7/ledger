@@ -1,7 +1,9 @@
 // Auto-detect API base URL based on environment
 const API_BASE_URL = import.meta.env.PROD 
   ? ''  // Production: use relative paths for Vercel serverless functions
-  : 'http://localhost:3001/api';  // Development: use local Express server
+  : 'http://localhost:3001';  // Development: use local Express server
+
+const buildApiUrl = (path) => `${API_BASE_URL}/api${path}`;
 
 // Fetch with timeout and error handling
 const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
@@ -39,21 +41,21 @@ const fetchWithTimeout = async (url, options = {}, timeout = 10000) => {
 export const transactionAPI = {
   // GET all transactions for a month
   getAll: async (month) => {
-    const url = `${API_BASE_URL}/api/transactions${month ? `?month=${month}` : ''}`;
+    const url = `${buildApiUrl('/transactions')}${month ? `?month=${month}` : ''}`;
     const response = await fetchWithTimeout(url);
     return response.json();
   },
 
   // GET single transaction
   getById: async (id) => {
-    const url = `${API_BASE_URL}/api/transactions/${id}`;
+    const url = buildApiUrl(`/transactions/${id}`);
     const response = await fetchWithTimeout(url);
     return response.json();
   },
 
   // POST create transaction
   create: async (transaction) => {
-    const url = `${API_BASE_URL}/api/transactions`;
+    const url = buildApiUrl('/transactions');
     const response = await fetchWithTimeout(url, {
       method: 'POST',
       body: JSON.stringify(transaction),
@@ -63,7 +65,7 @@ export const transactionAPI = {
 
   // PUT update transaction
   update: async (id, transaction) => {
-    const url = `${API_BASE_URL}/api/transactions/${id}`;
+    const url = buildApiUrl(`/transactions/${id}`);
     const response = await fetchWithTimeout(url, {
       method: 'PUT',
       body: JSON.stringify(transaction),
@@ -73,7 +75,7 @@ export const transactionAPI = {
 
   // DELETE transaction
   delete: async (id) => {
-    const url = `${API_BASE_URL}/api/transactions/${id}`;
+    const url = buildApiUrl(`/transactions/${id}`);
     const response = await fetchWithTimeout(url, {
       method: 'DELETE',
     });
@@ -84,7 +86,7 @@ export const transactionAPI = {
 // Month API
 export const monthAPI = {
   getAll: async () => {
-    const url = `${API_BASE_URL}/api/months`;
+    const url = buildApiUrl('/months');
     const response = await fetchWithTimeout(url);
     return response.json();
   },
@@ -93,7 +95,7 @@ export const monthAPI = {
 // Health check
 export const healthCheck = async () => {
   try {
-    const url = `${API_BASE_URL}/api/health`;
+    const url = buildApiUrl('/health');
     const response = await fetchWithTimeout(url, {}, 5000);
     return response.json();
   } catch {
