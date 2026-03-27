@@ -136,6 +136,7 @@ const styles = {
     fontFamily: '"Courier Prime", monospace',
     position: 'relative',
     overflow: 'hidden',
+    overflowX: 'hidden',
   },
   grainOverlay: {
     position: 'fixed',
@@ -162,6 +163,7 @@ const styles = {
   container: {
     display: 'flex',
     minHeight: '100vh',
+    width: '100%',
   },
   sidebar: {
     width: '220px',
@@ -232,6 +234,7 @@ const styles = {
     flex: 1,
     marginLeft: '220px',
     padding: '0',
+    minWidth: 0, // Prevent flex overflow
   },
   header: {
     borderBottom: `3px solid ${COLORS.text}`,
@@ -240,6 +243,8 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     backgroundColor: COLORS.bg,
+    flexWrap: 'wrap',
+    gap: '8px',
   },
   headerTitle: {
     fontFamily: '"Bebas Neue", sans-serif',
@@ -280,6 +285,7 @@ const styles = {
     gap: '64px',
     padding: '24px 32px',
     borderBottom: `2px dashed rgba(13, 13, 13, 0.15)`,
+    flexWrap: 'wrap',
   },
   summaryItem: {
     textAlign: 'center',
@@ -320,6 +326,7 @@ const styles = {
   tableContainer: {
     padding: '0',
     overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch',
   },
   table: {
     width: '100%',
@@ -478,6 +485,7 @@ const styles = {
     overflowY: 'auto',
     transform: 'translateX(100%)',
     transition: 'transform 0.3s ease',
+    WebkitOverflowScrolling: 'touch',
   },
   formPanelOpen: {
     transform: 'translateX(0)',
@@ -591,6 +599,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
   },
   emptyState: {
     padding: '80px 32px',
@@ -876,23 +885,244 @@ function TransactionTable({ state, dispatch, runningBalances, isMobileView }) {
     return type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
   };
 
-  if (sortedTransactions.length === 0) {
-    return (
-      <div style={styles.emptyState}>
-        <div style={styles.emptyStateTitle}>NO ENTRIES YET</div>
-        <div
-          style={styles.emptyStateLink}
-          onClick={() => dispatch({ type: 'OPEN_FORM' })}
-        >
-          ADD YOUR FIRST TRANSACTION →
+  // Mobile card view for transactions
+  const renderMobileCards = () => {
+    if (sortedTransactions.length === 0) {
+      return (
+        <div style={{ ...styles.emptyState, padding: '40px 16px' }}>
+          <div style={{ ...styles.emptyStateTitle, fontSize: '32px' }}>NO ENTRIES YET</div>
+          <div
+            style={styles.emptyStateLink}
+            onClick={() => dispatch({ type: 'OPEN_FORM' })}
+          >
+            ADD YOUR FIRST TRANSACTION →
+          </div>
         </div>
+      );
+    }
+
+    return (
+      <div style={{ padding: '0 8px 8px' }}>
+        {sortedTransactions.map((transaction, index) => {
+          const categoryList = getCategoriesForType(transaction.type);
+          const category = categoryList.find(c => c.name === transaction.category);
+          const isExpense = transaction.type === 'expense';
+          const isExpanded = state.expandedRow === transaction.id;
+          const isPendingDelete = state.pendingDelete === transaction.id;
+          const isEditing = editingTransaction === transaction.id;
+
+          return (
+            <div
+              key={transaction.id}
+              style={{
+                backgroundColor: COLORS.bgAlt,
+                border: `2px solid ${COLORS.text}`,
+                marginBottom: '8px',
+                position: 'relative',
+              }}
+            >
+              {isPendingDelete && (
+                <div style={{
+                  ...styles.voidStamp,
+                  fontSize: '48px',
+                  top: '50%',
+                  left: '50%',
+                }}>VOID</div>
+              )}
+
+              {/* Card header - always visible */}
+              <div
+                style={{
+                  padding: '12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  cursor: 'pointer',
+                }}
+                onClick={() => !isPendingDelete && !isEditing && dispatch({ type: 'EXPAND_ROW', payload: transaction.id })}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <CategoryBadge code={category?.code || '?'} size="small" />
+                    <span style={{ fontFamily: '"Bebas Neue", sans-serif', fontSize: '14px' }}>
+                      {transaction.category}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: '"Courier Prime", monospace', fontSize: '12px', opacity: 0.7 }}>
+                    {transaction.date}
+                  </div>
+                  <div style={{ fontFamily: '"Courier Prime", monospace', fontSize: '13px', marginTop: '4px' }}>
+                    {transaction.description}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{
+                    fontFamily: '"Courier Prime", monospace',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    color: isExpense ? COLORS.accentRed : COLORS.text,
+                  }}>
+                    {isExpense ? '-' : '+'}₹{formatCurrency(transaction.amount)}
+                  </div>
+                  <button
+                    style={{ ...styles.deleteButton, marginTop: '8px', opacity: 0.5 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dispatch({ type: 'SET_PENDING_DELETE', payload: transaction.id });
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded content */}
+              {isExpanded && !isPendingDelete && (
+                <div style={{ ...styles.expandedRow, borderTop: `2px solid ${COLORS.text}` }}>
+                  {isEditing ? (
+                    <>
+                      <div style={styles.expandedField}>
+                        <span style={styles.expandedLabel}>DATE</span>
+                        <input
+                          style={styles.expandedInput}
+                          type="date"
+                          value={editForm.date}
+                          onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                        />
+                      </div>
+                      <div style={styles.expandedField}>
+                        <span style={styles.expandedLabel}>TYPE</span>
+                        <select
+                          style={styles.expandedInput}
+                          value={editForm.type}
+                          onChange={(e) => {
+                            const newType = e.target.value;
+                            const defaultCat = getCategoriesForType(newType)[0].name;
+                            setEditForm({ ...editForm, type: newType, category: defaultCat });
+                          }}
+                        >
+                          <option value="income">INCOME</option>
+                          <option value="expense">EXPENSE</option>
+                        </select>
+                      </div>
+                      <div style={styles.expandedField}>
+                        <span style={styles.expandedLabel}>CATEGORY</span>
+                        <select
+                          style={styles.expandedInput}
+                          value={editForm.category}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        >
+                          {getCategoriesForType(editForm.type).map((cat) => (
+                            <option key={cat.name} value={cat.name}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={styles.expandedField}>
+                        <span style={styles.expandedLabel}>DESCRIPTION</span>
+                        <input
+                          style={styles.expandedInput}
+                          type="text"
+                          value={editForm.description}
+                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        />
+                      </div>
+                      <div style={styles.expandedField}>
+                        <span style={styles.expandedLabel}>AMOUNT</span>
+                        <input
+                          style={styles.expandedInput}
+                          type="number"
+                          value={editForm.amount}
+                          onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+                        <button style={{ ...styles.saveButton, flex: 1 }} onClick={handleSaveEdit}>
+                          SAVE
+                        </button>
+                        <button
+                          style={{ ...styles.saveButton, borderColor: COLORS.accentRed, color: COLORS.accentRed, flex: 1 }}
+                          onClick={handleCancelEdit}
+                        >
+                          CANCEL
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={styles.expandedField}>
+                        <span style={styles.expandedLabel}>TYPE</span>
+                        <span style={{ fontFamily: '"Courier Prime", monospace', textTransform: 'uppercase' }}>
+                          {transaction.type}
+                        </span>
+                      </div>
+                      <div style={{ marginTop: '12px' }}>
+                        <button
+                          style={{ ...styles.saveButton, width: '100%' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(transaction);
+                          }}
+                        >
+                          EDIT
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Delete confirmation */}
+              {isPendingDelete && (
+                <div style={{ padding: '12px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <span
+                    style={{ ...styles.voidLink, color: COLORS.accentRed, fontWeight: 'bold' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteConfirm();
+                    }}
+                  >
+                    CONFIRM DELETE
+                  </span>
+                  <span
+                    style={{ ...styles.voidLink, fontWeight: 'bold' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCancel();
+                    }}
+                  >
+                    CANCEL
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
-  }
+  };
 
-  return (
-    <div style={styles.tableContainer}>
-      <table style={{ ...styles.table, minWidth: isMobileView ? '760px' : '100%' }}>
+  // Desktop table view
+  const renderDesktopTable = () => {
+    if (sortedTransactions.length === 0) {
+      return (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyStateTitle}>NO ENTRIES YET</div>
+          <div
+            style={styles.emptyStateLink}
+            onClick={() => dispatch({ type: 'OPEN_FORM' })}
+          >
+            ADD YOUR FIRST TRANSACTION →
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <table style={styles.table}>
         <thead style={styles.tableHeader}>
           <tr>
             <th
@@ -1144,6 +1374,12 @@ function TransactionTable({ state, dispatch, runningBalances, isMobileView }) {
           })}
         </tbody>
       </table>
+    );
+  };
+
+  return (
+    <div style={styles.tableContainer}>
+      {isMobileView ? renderMobileCards() : renderDesktopTable()}
     </div>
   );
 }
@@ -1200,21 +1436,50 @@ function AddTransactionForm({ state, dispatch, onTransactionAdded, isMobileView 
   return (
     <>
       {state.isFormOpen && (
-        <div style={styles.formOverlay} onClick={() => dispatch({ type: 'CLOSE_FORM' })} />
+        <div
+          style={{
+            ...styles.formOverlay,
+            zIndex: isMobileView ? 199 : styles.formOverlay.zIndex,
+          }}
+          onClick={() => dispatch({ type: 'CLOSE_FORM' })}
+        />
       )}
       <div
         style={{
           ...styles.formPanel,
           width: isMobileView ? '100%' : styles.formPanel.width,
-          padding: isMobileView ? '20px 16px 32px' : styles.formPanel.padding,
+          padding: isMobileView ? '20px 16px 120px' : styles.formPanel.padding,
           ...(state.isFormOpen ? styles.formPanelOpen : {}),
         }}
       >
+        {/* Close button for mobile */}
+        {isMobileView && (
+          <button
+            onClick={() => dispatch({ type: 'CLOSE_FORM' })}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'none',
+              border: `2px solid ${COLORS.text}`,
+              width: '36px',
+              height: '36px',
+              cursor: 'pointer',
+              fontSize: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+        )}
         <h2
           style={{
             ...styles.formTitle,
             fontSize: isMobileView ? '30px' : styles.formTitle.fontSize,
             marginBottom: isMobileView ? '20px' : styles.formTitle.marginBottom,
+            paddingRight: isMobileView ? '44px' : 0,
           }}
         >
           NEW ENTRY
@@ -1325,23 +1590,47 @@ function AddTransactionForm({ state, dispatch, onTransactionAdded, isMobileView 
 }
 
 function MobileSidebar({ state, dispatch, categoryTotals }) {
+  const maxTotal = Math.max(...Object.values(categoryTotals.expense), 1);
+
   return (
     <div style={{
-      ...styles.mobileSidebar,
       position: 'fixed',
       bottom: 0,
       left: 0,
       right: 0,
       backgroundColor: COLORS.bg,
       borderTop: `3px solid ${COLORS.text}`,
-      padding: '12px',
+      padding: '8px 0',
       display: 'flex',
       justifyContent: 'flex-start',
-      gap: '8px',
+      gap: '4px',
       overflowX: 'auto',
       whiteSpace: 'nowrap',
-      zIndex: 100,
+      zIndex: 200,
+      WebkitOverflowScrolling: 'touch',
+      scrollbarWidth: 'none',
+      msOverflowStyle: 'none',
     }}>
+      {/* All categories button */}
+      <button
+        onClick={() => dispatch({ type: 'SET_CATEGORY_FILTER', payload: null })}
+        style={{
+          background: 'none',
+          border: `2px solid ${COLORS.text}`,
+          backgroundColor: state.selectedCategory === null ? COLORS.accentYellow : 'transparent',
+          padding: '6px 10px',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '2px',
+          minWidth: '50px',
+          flexShrink: 0,
+          marginLeft: '8px',
+        }}
+      >
+        <span style={{ fontSize: '14px', fontFamily: '"Bebas Neue", sans-serif' }}>ALL</span>
+      </button>
       {CATEGORIES.map((cat) => {
         const expenseTotal = categoryTotals.expense[cat.name] || 0;
         const isSelected = state.selectedCategory === cat.name;
@@ -1354,19 +1643,23 @@ function MobileSidebar({ state, dispatch, categoryTotals }) {
               background: 'none',
               border: `2px solid ${COLORS.text}`,
               backgroundColor: isSelected ? COLORS.accentYellow : 'transparent',
-              padding: '8px 12px',
+              padding: '6px 10px',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '4px',
+              gap: '2px',
+              minWidth: '50px',
+              flexShrink: 0,
             }}
           >
             <CategoryBadge code={cat.code} size="small" />
-            <span style={{ fontSize: '8px', fontFamily: '"Bebas Neue", sans-serif' }}>{cat.name}</span>
+            <span style={{ fontSize: '7px', fontFamily: '"Bebas Neue", sans-serif', letterSpacing: '0.5px' }}>{cat.name}</span>
           </button>
         );
       })}
+      {/* Spacer for the + button */}
+      <div style={{ width: '70px', flexShrink: 0 }} />
     </div>
   );
 }
@@ -1575,7 +1868,8 @@ function App() {
           style={{
             ...styles.mainContent,
             marginLeft: isMobileView ? 0 : styles.mainContent.marginLeft,
-            paddingBottom: isMobileView ? '92px' : 0,
+            paddingBottom: isMobileView ? '100px' : 0,
+            width: isMobileView ? '100%' : 'auto',
           }}
         >
           {/* Header */}
@@ -1667,8 +1961,9 @@ function App() {
           width: isMobileView ? '56px' : styles.addTransactionButton.width,
           height: isMobileView ? '56px' : styles.addTransactionButton.height,
           fontSize: isMobileView ? '28px' : styles.addTransactionButton.fontSize,
-          right: isMobileView ? '14px' : styles.addTransactionButton.right,
-          bottom: isMobileView ? '84px' : styles.addTransactionButton.bottom,
+          right: isMobileView ? '16px' : styles.addTransactionButton.right,
+          bottom: isMobileView ? '108px' : styles.addTransactionButton.bottom,
+          borderRadius: isMobileView ? '50%' : 0,
           ...(formHovered ? { backgroundColor: COLORS.text, color: COLORS.bg } : {}),
         }}
         onClick={() => dispatch({ type: 'OPEN_FORM' })}
